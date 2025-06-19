@@ -1,0 +1,14 @@
+{
+  "chargers": [
+    {
+      "name": "Expressway Charging - Mariam Enterprise",
+      "id": "a001",
+      "address": "Connaught Place, Delhi",
+      "distance": "2102",
+      "distance_metrics": "metres",
+      "latitude": "22.4532122",
+      "longitude": "77.4545322",
+      "connector_types": ["lvl1dc-2", "lvl2dc-1", "normalac-1"]
+    }
+  ]
+}
