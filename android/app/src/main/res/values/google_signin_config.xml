@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Replace with your actual Web Client ID from Google Cloud Console -->
+    <string name="server_client_id">389876117832-fek2k89rjletuicspt3vp07m2ekagidj.apps.googleusercontent.com</string>
+</resources>

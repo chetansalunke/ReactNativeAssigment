@@ -10,11 +10,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import ViewShot from 'react-native-view-shot';
 import { FAB } from 'react-native-paper';
+import GoogleDriveService from '../utils/GoogleDriveService';
 
 // Import your EV chargers JSON file
 import evChargersData from '../../data/charger.json'; // Adjust path as needed
@@ -53,6 +55,14 @@ const HomeScreen = () => {
         if (Platform.OS === 'android') {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            {
+              title: 'Location Permission',
+              message:
+                'This app needs access to your location to show nearby chargers.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            },
           );
           if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
             if (isMounted) setErrorMsg('Location permission denied');
@@ -61,6 +71,7 @@ const HomeScreen = () => {
         }
         getCurrentLocation();
       } catch (err) {
+        console.error('Permission error:', err);
         setErrorMsg('Error requesting location permission');
       }
     };
@@ -79,6 +90,7 @@ const HomeScreen = () => {
           setErrorMsg('');
         },
         error => {
+          console.error('Location error:', error);
           if (!isMounted) return;
           let msg = error.message;
           if (error.code === 1)
@@ -90,7 +102,7 @@ const HomeScreen = () => {
             retryTimeout = setTimeout(getCurrentLocation, 3000);
           }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
       );
     };
 
@@ -104,13 +116,79 @@ const HomeScreen = () => {
   const handleCaptureAndUpload = async () => {
     try {
       setUploading(true);
+
+      // Check if user is signed in first
+      const isSignedIn = await GoogleDriveService.isSignedIn();
+      if (!isSignedIn) {
+        Alert.alert(
+          'Sign-in Required',
+          'You need to sign in to your Google account to upload to Drive',
+          [
+            {
+              text: 'Sign In',
+              onPress: async () => {
+                try {
+                  await GoogleDriveService.signIn();
+                  // Retry upload after successful sign-in
+                  handleCaptureAndUpload();
+                } catch (signInError) {
+                  console.error('Sign-in error:', signInError);
+                  Alert.alert(
+                    'Sign-in Error',
+                    'Failed to sign in. Please check your internet connection and try again.',
+                  );
+                }
+              },
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ],
+        );
+        return;
+      }
+
+      // Step 1: Capture the screenshot using ViewShot
       const uri = await mapRef.current.capture({
         format: 'webp',
         quality: 0.9,
       });
-      Alert.alert('Screenshot captured', uri);
+
+      // Step 2: Upload to Google Drive
+      const fileName = `EV_Charger_Map_${new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')}.webp`;
+      const uploadResult = await GoogleDriveService.uploadToGoogleDrive(
+        uri,
+        'image/webp',
+        fileName,
+      );
+
+      if (uploadResult.success) {
+        Alert.alert(
+          'Upload Successful',
+          `Your map screenshot has been saved to Google Drive as "${uploadResult.fileName}"`,
+          [{ text: 'OK' }],
+        );
+      } else {
+        throw new Error(uploadResult.error || 'Upload failed');
+      }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      console.error('Capture and upload error:', error);
+
+      // Enhanced error handling
+      let errorMessage = 'Failed to capture and upload screenshot';
+
+      if (error.code === -5 || error.message?.includes('sign')) {
+        errorMessage = 'Please sign in to Google Drive first';
+      } else if (
+        error.message?.includes('network') ||
+        error.message?.includes('internet')
+      ) {
+        errorMessage = 'Please check your internet connection';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setUploading(false);
     }
@@ -124,6 +202,7 @@ const HomeScreen = () => {
     }, 0);
   };
 
+  // Fixed connector mapping to match your JSON data
   const getConnectorDetails = connectorTypes => {
     return connectorTypes.map(connector => {
       const [type, count] = connector.split('-');
@@ -132,20 +211,30 @@ const HomeScreen = () => {
       let chargingType = '';
 
       switch (type.toLowerCase()) {
-        case 'ccs':
+        case 'lvl2dc':
           name = 'Level 2 DC';
           power = '50kW Fast Charging';
           chargingType = 'Fast Charging';
           break;
-        case 'type2':
+        case 'lvl1dc':
           name = 'Level 1 DC';
           power = '15kW Fast Charging';
           chargingType = 'Fast Charging';
           break;
-        case 'chademo':
+        case 'normalac':
           name = 'Normal AC';
           power = '3kW Charging';
           chargingType = 'Charging';
+          break;
+        case 'ccs':
+          name = 'CCS Combo';
+          power = '150kW Ultra Fast';
+          chargingType = 'Ultra Fast Charging';
+          break;
+        case 'chademo':
+          name = 'CHAdeMO';
+          power = '50kW Fast Charging';
+          chargingType = 'Fast Charging';
           break;
         default:
           name = 'Standard';
@@ -154,6 +243,7 @@ const HomeScreen = () => {
       }
 
       return {
+        type,
         name,
         power,
         chargingType,
@@ -193,10 +283,31 @@ const HomeScreen = () => {
   };
 
   const renderConnectorIcon = type => {
-    // You can customize these icons based on connector type
+    let iconText = '🔌';
+
+    switch (type.toLowerCase()) {
+      case 'lvl2dc':
+        iconText = '⚡';
+        break;
+      case 'lvl1dc':
+        iconText = '🔋';
+        break;
+      case 'normalac':
+        iconText = '🔌';
+        break;
+      case 'ccs':
+        iconText = '⚡';
+        break;
+      case 'chademo':
+        iconText = '🔋';
+        break;
+      default:
+        iconText = '🔌';
+    }
+
     return (
       <View style={styles.connectorIcon}>
-        <Text style={styles.connectorIconText}>🔌</Text>
+        <Text style={styles.connectorIconText}>{iconText}</Text>
       </View>
     );
   };
@@ -215,11 +326,17 @@ const HomeScreen = () => {
         <ScrollView style={styles.bottomSheetContent}>
           <View style={styles.chargerHeader}>
             <View style={styles.chargerTitleRow}>
-              <Text style={styles.chargerTitle}>EXPRESSWAY CHARGING...</Text>
+              <Text style={styles.chargerTitle}>
+                {selectedCharger.name.toUpperCase()}
+              </Text>
               <TouchableOpacity
                 style={styles.navigationButton}
                 onPress={() => {
-                  /* Add navigation logic */
+                  // Add navigation logic here
+                  Alert.alert(
+                    'Navigation',
+                    `Navigate to ${selectedCharger.name}?`,
+                  );
                 }}
               >
                 <Text style={styles.navigationIcon}>📍</Text>
@@ -235,7 +352,7 @@ const HomeScreen = () => {
 
           {connectorDetails.map((connector, index) => (
             <View key={index} style={styles.connectorRow}>
-              {renderConnectorIcon(connector.name)}
+              {renderConnectorIcon(connector.type)}
               <View style={styles.connectorInfo}>
                 <Text style={styles.connectorName}>{connector.name}</Text>
                 <Text style={styles.connectorPower}>{connector.power}</Text>
@@ -248,7 +365,10 @@ const HomeScreen = () => {
             </View>
           ))}
 
-          <TouchableOpacity style={styles.expandButton}>
+          <TouchableOpacity
+            style={styles.expandButton}
+            onPress={() => setShowBottomSheet(false)}
+          >
             <Text style={styles.expandIcon}>⌄</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -260,9 +380,9 @@ const HomeScreen = () => {
     <View style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.menuButton}>
+        <TouchableOpacity style={styles.menuButton}>
           <Text style={styles.menuIcon}>☰</Text>
-        </View>
+        </TouchableOpacity>
         <TextInput
           style={styles.searchInput}
           placeholder="Search for the compatible chargers"
@@ -284,6 +404,7 @@ const HomeScreen = () => {
           style={styles.map}
           region={location || DEFAULT_REGION}
           showsUserLocation={true}
+          showsMyLocationButton={false}
         >
           {/* User location marker */}
           {location && (
@@ -304,9 +425,12 @@ const HomeScreen = () => {
       </ViewShot>
 
       {!location && (
-        <Text style={styles.waitingText}>
-          {errorMsg ? errorMsg : 'Waiting for location...'}
-        </Text>
+        <View style={styles.statusContainer}>
+          <ActivityIndicator size="small" color="#4CAF50" />
+          <Text style={styles.waitingText}>
+            {errorMsg ? errorMsg : 'Getting your location...'}
+          </Text>
+        </View>
       )}
 
       {/* Bottom Sheet */}
@@ -356,6 +480,11 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     paddingHorizontal: 4,
     paddingVertical: 4,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   menuButton: {
     width: 40,
@@ -388,16 +517,26 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 16,
   },
-  waitingText: {
+  statusContainer: {
     position: 'absolute',
     top: 120,
     alignSelf: 'center',
     zIndex: 1,
     backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    color: 'red',
-    fontWeight: 'bold',
+    padding: 15,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+  },
+  waitingText: {
+    marginLeft: 10,
+    color: '#333',
+    fontWeight: '500',
   },
   markerContainer: {
     width: 32,
@@ -439,7 +578,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     zIndex: 15,
   },
   bottomSheet: {
@@ -470,6 +609,7 @@ const styles = StyleSheet.create({
   bottomSheetContent: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   chargerHeader: {
     marginBottom: 20,
@@ -484,6 +624,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+    flex: 1,
+    marginRight: 10,
   },
   navigationButton: {
     width: 32,
