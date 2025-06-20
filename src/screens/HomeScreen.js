@@ -240,47 +240,21 @@ const HomeScreen = () => {
     } catch (error) {
       console.error('Capture and upload error:', error);
 
-      // Enhanced error handling with more specific messages
+      // Enhanced error handling
       let errorMessage = 'Failed to capture and upload screenshot';
-      let errorTitle = 'Upload Error';
 
-      // Check for specific error types
-      if (error.code === 12501 || error.code === -5) {
-        // Google Sign-in was canceled by user
-        errorMessage = 'Google Sign-in was canceled';
-      } else if (error.message?.includes('configuration')) {
-        errorTitle = 'Configuration Error';
-        errorMessage =
-          'Google Sign-in is not properly configured. Check your OAuth credentials.';
-      } else if (error.message?.includes('sign')) {
-        errorTitle = 'Authentication Error';
+      if (error.code === -5 || error.message?.includes('sign')) {
         errorMessage = 'Please sign in to Google Drive first';
       } else if (
-        error.message?.includes('token') ||
-        error.message?.includes('auth')
-      ) {
-        errorTitle = 'Authentication Error';
-        errorMessage =
-          'Your Google authentication has expired. Please sign in again.';
-      } else if (
         error.message?.includes('network') ||
-        error.message?.includes('internet') ||
-        error.message?.includes('connect')
+        error.message?.includes('internet')
       ) {
-        errorTitle = 'Network Error';
         errorMessage = 'Please check your internet connection';
-      } else if (
-        error.message?.includes('permission') ||
-        error.message?.includes('scope')
-      ) {
-        errorTitle = 'Permission Error';
-        errorMessage =
-          "The app doesn't have permission to upload to your Google Drive";
       } else if (error.message) {
         errorMessage = error.message;
       }
 
-      Alert.alert(errorTitle, errorMessage);
+      Alert.alert('Error', errorMessage);
     } finally {
       setUploading(false);
     }
