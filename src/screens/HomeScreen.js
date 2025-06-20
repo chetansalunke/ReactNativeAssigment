@@ -77,6 +77,7 @@ const HomeScreen = () => {
     };
 
     const getCurrentLocation = () => {
+      // First try to get a quick, less accurate location
       Geolocation.getCurrentPosition(
         pos => {
           if (!isMounted) return;
@@ -88,6 +89,22 @@ const HomeScreen = () => {
             longitudeDelta: 0.05,
           });
           setErrorMsg('');
+
+          // After getting quick position, try to get more accurate one
+          Geolocation.getCurrentPosition(
+            accuratePos => {
+              if (!isMounted) return;
+              const { latitude, longitude } = accuratePos.coords;
+              setLocation({
+                latitude,
+                longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              });
+            },
+            () => {}, // Ignore errors from high accuracy attempt
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 },
+          );
         },
         error => {
           console.error('Location error:', error);
@@ -99,10 +116,10 @@ const HomeScreen = () => {
           if (error.code === 3) msg = 'Location timeout. Retrying...';
           setErrorMsg(msg);
           if (error.code === 3 || error.code === 2) {
-            retryTimeout = setTimeout(getCurrentLocation, 3000);
+            retryTimeout = setTimeout(getCurrentLocation, 1000); // Faster retry
           }
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }, // 5 sec timeout, 5 min cache
       );
     };
 
@@ -117,78 +134,153 @@ const HomeScreen = () => {
     try {
       setUploading(true);
 
-      // Check if user is signed in first
-      const isSignedIn = await GoogleDriveService.isSignedIn();
-      if (!isSignedIn) {
-        Alert.alert(
-          'Sign-in Required',
-          'You need to sign in to your Google account to upload to Drive',
-          [
-            {
-              text: 'Sign In',
-              onPress: async () => {
-                try {
-                  await GoogleDriveService.signIn();
-                  // Retry upload after successful sign-in
-                  handleCaptureAndUpload();
-                } catch (signInError) {
-                  console.error('Sign-in error:', signInError);
-                  Alert.alert(
-                    'Sign-in Error',
-                    'Failed to sign in. Please check your internet connection and try again.',
-                  );
-                }
-              },
-            },
-            { text: 'Cancel', style: 'cancel' },
-          ],
-        );
-        return;
+      // First ensure we have a valid map to capture
+      if (!mapRef.current) {
+        throw new Error('Map is not ready for capture');
       }
 
       // Step 1: Capture the screenshot using ViewShot
-      const uri = await mapRef.current.capture({
-        format: 'webp',
-        quality: 0.9,
-      });
+      let uri;
+      try {
+        uri = await mapRef.current.capture({
+          format: 'webp',
+          quality: 0.9,
+        });
 
-      // Step 2: Upload to Google Drive
-      const fileName = `EV_Charger_Map_${new Date()
-        .toISOString()
-        .replace(/[:.]/g, '-')}.webp`;
-      const uploadResult = await GoogleDriveService.uploadToGoogleDrive(
-        uri,
-        'image/webp',
-        fileName,
-      );
+        if (!uri) {
+          throw new Error('Failed to capture screenshot');
+        }
+      } catch (captureError) {
+        console.error('Screenshot capture error:', captureError);
+        throw new Error('Failed to capture map screenshot');
+      }
 
-      if (uploadResult.success) {
-        Alert.alert(
-          'Upload Successful',
-          `Your map screenshot has been saved to Google Drive as "${uploadResult.fileName}"`,
-          [{ text: 'OK' }],
+      // Step 2: Handle Google authentication
+      try {
+        // Check if user is signed in first
+        const isSignedIn = await GoogleDriveService.isSignedIn();
+
+        if (!isSignedIn) {
+          // If not signed in, initiate sign-in process and wait for completion
+          console.log('User not signed in, initiating sign-in flow');
+
+          return new Promise(resolve => {
+            Alert.alert(
+              'Sign-in Required',
+              'You need to sign in to your Google account to upload to Drive',
+              [
+                {
+                  text: 'Sign In',
+                  onPress: async () => {
+                    try {
+                      const userInfo = await GoogleDriveService.signIn();
+                      console.log(
+                        'Sign-in successful:',
+                        userInfo?.user?.email || 'User',
+                      );
+
+                      // After successful sign-in, continue with upload
+                      setTimeout(() => {
+                        handleCaptureAndUpload();
+                      }, 500);
+                      resolve();
+                    } catch (signInError) {
+                      console.error('Sign-in error:', signInError);
+                      Alert.alert(
+                        'Sign-in Error',
+                        'Failed to sign in to Google. Please check your configuration and internet connection.',
+                        [{ text: 'OK' }],
+                      );
+                      setUploading(false);
+                      resolve();
+                    }
+                  },
+                },
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                  onPress: () => {
+                    setUploading(false);
+                    resolve();
+                  },
+                },
+              ],
+              { cancelable: false },
+            );
+          });
+        }
+
+        // User is already signed in, proceed with upload
+        console.log('User already signed in, proceeding with upload');
+
+        // Step 3: Upload to Google Drive
+        const fileName = `EV_Charger_Map_${new Date()
+          .toISOString()
+          .replace(/[:.]/g, '-')}.webp`;
+
+        const uploadResult = await GoogleDriveService.uploadToGoogleDrive(
+          uri,
+          'image/webp',
+          fileName,
         );
-      } else {
-        throw new Error(uploadResult.error || 'Upload failed');
+
+        if (uploadResult.success) {
+          Alert.alert(
+            'Upload Successful',
+            `Your map screenshot has been saved to Google Drive as "${uploadResult.fileName}"`,
+            [{ text: 'OK' }],
+          );
+        } else {
+          throw new Error(uploadResult.error || 'Upload failed');
+        }
+      } catch (authError) {
+        console.error('Authentication or upload error:', authError);
+        throw authError;
       }
     } catch (error) {
       console.error('Capture and upload error:', error);
 
-      // Enhanced error handling
+      // Enhanced error handling with more specific messages
       let errorMessage = 'Failed to capture and upload screenshot';
+      let errorTitle = 'Upload Error';
 
-      if (error.code === -5 || error.message?.includes('sign')) {
+      // Check for specific error types
+      if (error.code === 12501 || error.code === -5) {
+        // Google Sign-in was canceled by user
+        errorMessage = 'Google Sign-in was canceled';
+      } else if (error.message?.includes('configuration')) {
+        errorTitle = 'Configuration Error';
+        errorMessage =
+          'Google Sign-in is not properly configured. Check your OAuth credentials.';
+      } else if (error.message?.includes('sign')) {
+        errorTitle = 'Authentication Error';
         errorMessage = 'Please sign in to Google Drive first';
       } else if (
-        error.message?.includes('network') ||
-        error.message?.includes('internet')
+        error.message?.includes('token') ||
+        error.message?.includes('auth')
       ) {
+        errorTitle = 'Authentication Error';
+        errorMessage =
+          'Your Google authentication has expired. Please sign in again.';
+      } else if (
+        error.message?.includes('network') ||
+        error.message?.includes('internet') ||
+        error.message?.includes('connect')
+      ) {
+        errorTitle = 'Network Error';
         errorMessage = 'Please check your internet connection';
+      } else if (
+        error.message?.includes('permission') ||
+        error.message?.includes('scope')
+      ) {
+        errorTitle = 'Permission Error';
+        errorMessage =
+          "The app doesn't have permission to upload to your Google Drive";
       } else if (error.message) {
         errorMessage = error.message;
       }
 
-      Alert.alert('Error', errorMessage);
+      Alert.alert(errorTitle, errorMessage);
     } finally {
       setUploading(false);
     }
