@@ -1,130 +1,84 @@
 {
   "chargers": [
     {
-      "name": "expressway charging - mariam enterprise",
-      "id": "a001",
-      "address": "connaught place, delhi",
-      "distance": "2102",
-      "distance_metrics": "metres",
-      "latitude": "28.6139",
-      "longitude": "77.2090",
-      "connector_types": ["lvl1dc-2", "lvl2dc-1", "normalac-1"]
-    },
-    {
-      "name": "power grid station - tech hub",
-      "id": "a002",
-      "address": "sector 18, noida",
-      "distance": "3450",
-      "distance_metrics": "metres",
-      "latitude": "28.5355",
-      "longitude": "77.3910",
-      "connector_types": ["lvl2dc-3", "normalac-2"]
-    },
-    {
-      "name": "green energy point - mall complex",
-      "id": "a003",
-      "address": "mg road, gurgaon",
-      "distance": "1850",
-      "distance_metrics": "metres",
-      "latitude": "28.4595",
-      "longitude": "77.0266",
-      "connector_types": ["lvl1dc-1", "lvl2dc-2", "normalac-3", "ccs-1"]
-    },
-    {
-      "name": "fast charge hub - metro station",
-      "id": "a004",
-      "address": "rajiv chowk, new delhi",
+      "name": "pirangut highway charging - greenvolt",
+      "id": "p001",
+      "address": "Pirangut highway, Mulshi road",
       "distance": "800",
       "distance_metrics": "metres",
-      "latitude": "28.6328",
-      "longitude": "77.2197",
-      "connector_types": ["lvl2dc-4", "ccs-2"]
+      "latitude": "18.5085",
+      "longitude": "73.6782",
+      "connector_types": ["lvl2dc-2", "normalac-2"]
     },
     {
-      "name": "eco drive center - business park",
-      "id": "a005",
-      "address": "cyber city, gurgaon",
-      "distance": "5200",
+      "name": "eco EV point - hinjewadi gate",
+      "id": "p002",
+      "address": "Phase 1, Hinjewadi IT park",
+      "distance": "9500",
       "distance_metrics": "metres",
-      "latitude": "28.4949",
-      "longitude": "77.0893",
-      "connector_types": ["lvl1dc-2", "normalac-4", "chademo-1"]
+      "latitude": "18.5911",
+      "longitude": "73.7395",
+      "connector_types": ["lvl1dc-1", "ccs-1", "normalac-3"]
     },
     {
-      "name": "smart charging station - airport",
-      "id": "a006",
-      "address": "igi airport, delhi",
-      "distance": "12000",
+      "name": "mulshi fast charger - ecofleet",
+      "id": "p003",
+      "address": "Paud road, Mulshi",
+      "distance": "6200",
       "distance_metrics": "metres",
-      "latitude": "28.5562",
-      "longitude": "77.1000",
-      "connector_types": ["lvl2dc-6", "ccs-3", "chademo-2"]
+      "latitude": "18.5039",
+      "longitude": "73.6100",
+      "connector_types": ["chademo-1", "lvl2dc-1"]
     },
     {
-      "name": "urban charge point - hospital",
-      "id": "a007",
-      "address": "aiims, new delhi",
-      "distance": "4100",
+      "name": "lavasa highway EV - voltup",
+      "id": "p004",
+      "address": "Lavasa road, Bhugaon",
+      "distance": "11000",
       "distance_metrics": "metres",
-      "latitude": "28.5672",
-      "longitude": "77.2100",
-      "connector_types": ["normalac-2", "lvl1dc-1"]
+      "latitude": "18.5050",
+      "longitude": "73.7312",
+      "connector_types": ["lvl1dc-2", "normalac-1"]
     },
     {
-      "name": "highway power station - toll plaza",
-      "id": "a008",
-      "address": "nh-1, sonipat",
-      "distance": "25000",
+      "name": "flame university charge hub",
+      "id": "p005",
+      "address": "Lavale, near FLAME University",
+      "distance": "4500",
       "distance_metrics": "metres",
-      "latitude": "28.9931",
-      "longitude": "77.0151",
-      "connector_types": ["lvl2dc-8", "ccs-4", "chademo-2", "normalac-2"]
+      "latitude": "18.5322",
+      "longitude": "73.7009",
+      "connector_types": ["lvl2dc-2", "normalac-2", "ccs-1"]
     },
     {
-      "name": "metro charge hub - central station",
-      "id": "a009",
-      "address": "kashmere gate, delhi",
-      "distance": "3200",
+      "name": "bavdhan EV plaza - quickcharge",
+      "id": "p006",
+      "address": "Bavdhan Khurd, off NDA Road",
+      "distance": "9800",
       "distance_metrics": "metres",
-      "latitude": "28.6667",
-      "longitude": "77.2167",
-      "connector_types": ["lvl1dc-3", "lvl2dc-2", "normalac-1"]
+      "latitude": "18.5170",
+      "longitude": "73.7972",
+      "connector_types": ["ccs-2", "normalac-2"]
     },
     {
-      "name": "solar powered station - university",
-      "id": "a010",
-      "address": "jnu, new delhi",
-      "distance": "8500",
+      "name": "sus road supercharge - fastvolt",
+      "id": "p007",
+      "address": "Sus Gaon, highway exit",
+      "distance": "11400",
       "distance_metrics": "metres",
-      "latitude": "28.5495",
-      "longitude": "77.1681",
-      "connector_types": ["normalac-5", "lvl1dc-2", "ccs-1"]
+      "latitude": "18.5679",
+      "longitude": "73.7798",
+      "connector_types": ["lvl2dc-3", "chademo-1", "normalac-1"]
     },
     {
-      "name": "rapid charge center - shopping mall",
-      "id": "a011",
-      "address": "select city walk, saket",
-      "distance": "6700",
+      "name": "chandani chowk e-hub",
+      "id": "p008",
+      "address": "Chandani Chowk, Pune",
+      "distance": "12500",
       "distance_metrics": "metres",
-      "latitude": "28.5245",
-      "longitude": "77.2066",
-      "connector_types": ["lvl2dc-4", "ccs-2", "normalac-3"]
-    },
-    {
-      "name": "ev power hub - it park",
-      "id": "a012",
-      "address": "sector 62, noida",
-      "distance": "18000",
-      "distance_metrics": "metres",
-      "latitude": "28.6207",
-      "longitude": "77.3666",
-      "connector_types": [
-        "lvl1dc-1",
-        "lvl2dc-3",
-        "ccs-1",
-        "chademo-1",
-        "normalac-2"
-      ]
+      "latitude": "18.5058",
+      "longitude": "73.7874",
+      "connector_types": ["lvl1dc-1", "lvl2dc-1", "normalac-2"]
     }
   ]
 }
